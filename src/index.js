@@ -32,25 +32,63 @@ const RECT_HEIGHT = 5;
 let CENTER_X = CANVAS_WIDTH / 2.0;
 let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
-const SPAWN_RADIUS = 200;
-const SPAWN_ANGLE_INTERVAL = 25;
-const SPAWN_INTERVAL = 100;
+const SPAWN_POINT_OFFSET = 20;
+const SPAWN_MAX_DISTANCE = 75;
+const SPAWN_INTERVAL = 300;
 
-const TILES_COLLIDE = true
+// Should the tiles collide with one another
+const TILES_COLLIDE = true;
 
 
 const FAKE_PERSON = Bodies.rectangle(CENTER_X, CENTER_Y, 100, 300);
 FAKE_PERSON.render.fillStyle = "#4444FF";
 FAKE_PERSON.collisionFilter.group = 0;
-FAKE_PERSON.collisionFilter.category = 0b01;
-FAKE_PERSON.collisionFilter.mask = 0b11;
+FAKE_PERSON.collisionFilter.category = 0b0001;
+FAKE_PERSON.collisionFilter.mask = 0b0011;
+
+// disables the fake person collider. Helps with 
+FAKE_PERSON.collisionFilter.category = 0b0;
+FAKE_PERSON.collisionFilter.mask = 0b0;
+
+const CURRENT_POSE = {
+  // Left side
+  left_shoulder: [0, 0],
+  left_elbow: [0, 0],
+  left_hand: [0, 0],
+  left_shoulder_to_elbow_width: 10,
+  left_elbow_to_hand_width: 10,
+
+  left_hip: [0, 0],
+  left_knee: [0, 0],
+  left_foot: [0, 0],
+  left_hip_to_knee_width: 10,
+  left_knee_to_foot_width: 10,
+
+  // Right side
+  right_shoulder: [0, 0],
+  right_elbow: [0, 0],
+  right_hand: [0, 0],
+  right_shoulder_to_elbow_width: 10,
+  right_elbow_to_hand_width: 10,
+
+  right_hip: [0, 0],
+  right_knee: [0, 0],
+  right_foot: [0, 0],
+  right_hip_to_knee_width: 10,
+  right_knee_to_foot_width: 10,
+};
+
+// Set up some fake poses here for testing, woo
+// TODO: actually set em up, yo
+
 
 const GROUND = Bodies.rectangle(0, CANVAS_HEIGHT, CANVAS_WIDTH * 2, 10);
+GROUND.collisionFilter.group = 0;
+GROUND.collisionFilter.category = 0b0100;
+GROUND.collisionFilter.mask = 0b0101;
 Matter.Body.setStatic(GROUND, true);
 
-function addTile(x_spawn_f, y_spawn_f, angle_r) {
-  const x_spawn = x_spawn_f();
-  const y_spawn = y_spawn_f();
+function addTile(x_spawn, y_spawn, angle_r) {
   // Don't spawn too close to the ground?
   if (y_spawn > CANVAS_HEIGHT - 30) {
     return;
@@ -58,12 +96,10 @@ function addTile(x_spawn_f, y_spawn_f, angle_r) {
 
   const body = Bodies.rectangle(x_spawn, y_spawn, RECT_WIDTH, RECT_HEIGHT);
   Matter.Body.setAngle(body, angle_r);
-
   body.collisionFilter.group = 0;
-  // Uncomment below to make the tiles not collide with one another
   if (!TILES_COLLIDE) {
-    body.collisionFilter.category = 0b10;
-    body.collisionFilter.mask = 0b01;
+    body.collisionFilter.category = 0b0110;
+    body.collisionFilter.mask = 0b0101;
   }
 
   // body.render.fillStyle = "#" + Math.floor((Math.random() * 16777215) + 1000).toString(16);
@@ -81,9 +117,6 @@ function addTile(x_spawn_f, y_spawn_f, angle_r) {
   ]);
 }
 
-function addTileEmitter(x_start_f, y_start_f, angle_r, timeout = 300) {
-  setInterval(() => addTile(x_start_f, y_start_f, angle_r), timeout);
-}
 
 function removeOutOfBoundsBodies(bodies) {
   let count = 0;
@@ -99,8 +132,100 @@ function removeOutOfBoundsBodies(bodies) {
   console.log(`Removed ${count} out of bound entities`);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+/*
 
+def spawnTilesAroundPolygon(polygon):
+    center = get_center_of_rect(polygon)
+
+    perp_point_lines = pointsPerpendicularToAndOutsideOfPolygon(polygon, 20, 30)
+    result = []
+    for perp_points in perp_point_lines:
+        print("perp_points", perp_points)
+        if distanceBetweenPoints(perp_points[0], center) > distanceBetweenPoints(perp_points[1], center):
+            angle_r = linePointsToRadians(perp_points[0], perp_points[1])
+            spawn_pt = pointAngleRadsAndDistanceFromPoint(perp_points[0], angle_r, 1)
+            result.append([perp_points[0], perp_points[1]])
+        else:
+            angle_r = linePointsToRadians(perp_points[1], perp_points[0])
+            spawn_pt = pointAngleRadsAndDistanceFromPoint(perp_points[1], angle_r, 1)
+            result.append([perp_points[1], perp_points[0]])
+
+    return result
+
+ */
+
+function spawnTilesAroundPolygon(polygon, distance, max_segment_length) {
+  const center = GeomUtils.center_of_rect(polygon);
+
+  const perp_point_lines = GeomUtils.pointsPerpendicularToAndOutsideOfPolygon(polygon, distance, max_segment_length);
+  console.log("perp_point_lines", perp_point_lines);
+  let angle_r;
+  let spawn_pt;
+  for (let perp_points of perp_point_lines) {
+    console.log("perp_points", perp_points);
+
+    if (GeomUtils.distanceBetweenPoints(perp_points[0], center) > GeomUtils.distanceBetweenPoints(perp_points[1], center)) {
+      angle_r = GeomUtils.linePointsToRadians(perp_points[0], perp_points[1]);
+      spawn_pt = GeomUtils.pointAngleRadsAndDistanceFromPoint(perp_points[0], angle_r, 1);
+      spawn_pt = perp_points[0];
+
+    } else {
+      angle_r = GeomUtils.linePointsToRadians(perp_points[1], perp_points[0]);
+      spawn_pt = GeomUtils.pointAngleRadsAndDistanceFromPoint(perp_points[1], angle_r, 1);
+      spawn_pt = perp_points[1];
+    }
+
+    /*if (GeomUtils.distanceBetweenPoints(perp_points[0], center) > GeomUtils.distanceBetweenPoints(perp_points[1], center)) {
+      angle_r = GeomUtils.linePointsToRadians(perp_points[0], perp_points[1]);
+      spawn_pt = perp_points[0];
+    } else {
+      angle_r = GeomUtils.linePointsToRadians(perp_points[1], perp_points[0]);
+      spawn_pt = perp_points[1];
+    }*/
+
+    addTile(spawn_pt[0], spawn_pt[1], angle_r + Math.PI / 2);
+
+  }
+}
+
+function spawnTiles() {
+  const points = [];
+  for (let i = 0; i < FAKE_PERSON.vertices.length; i++) {
+    points.push([FAKE_PERSON.vertices[i].x, FAKE_PERSON.vertices[i].y]);
+  }
+  // Spawn around the radius!
+  spawnTilesAroundPolygon(points, SPAWN_POINT_OFFSET, SPAWN_MAX_DISTANCE);
+}
+
+function updatePersonPose(newPose) {
+  // Left side
+  CURRENT_POSE.left_shoulder = newPose.left_shoulder;
+  CURRENT_POSE.left_elbow = newPose.left_elbow;
+  CURRENT_POSE.left_hand = newPose.left_hand;
+  CURRENT_POSE.left_shoulder_to_elbow_width = newPose.left_shoulder_to_elbow_width;
+  CURRENT_POSE.left_elbow_to_hand_width = newPose.left_elbow_to_hand_width;
+
+  CURRENT_POSE.left_hip = newPose.left_hip;
+  CURRENT_POSE.left_knee = newPose.left_knee;
+  CURRENT_POSE.left_foot = newPose.left_foot;
+  CURRENT_POSE.left_hip_to_knee_width = newPose.left_hip_to_knee_width;
+  CURRENT_POSE.left_knee_to_foot_width = newPose.left_knee_to_foot_width;
+
+  // Right side
+  CURRENT_POSE.right_shoulder = newPose.right_shoulder;
+  CURRENT_POSE.right_elbow = newPose.right_elbow;
+  CURRENT_POSE.right_hand = newPose.right_hand;
+  CURRENT_POSE.right_shoulder_to_elbow_width = newPose.right_shoulder_to_elbow_width;
+  CURRENT_POSE.right_elbow_to_hand_width = newPose.right_elbow_to_hand_width;
+
+  CURRENT_POSE.right_hip = newPose.right_hip;
+  CURRENT_POSE.right_knee = newPose.right_knee;
+  CURRENT_POSE.right_foot = newPose.right_foot;
+  CURRENT_POSE.right_hip_to_knee_width = newPose.right_hip_to_knee_width;
+  CURRENT_POSE.right_knee_to_foot_width = newPose.right_knee_to_foot_width;
+}
+
+function start() {
   // create renderer
   const render = Render.create({
     element: document.body,
@@ -118,28 +243,23 @@ document.addEventListener("DOMContentLoaded", function () {
   Render.run(render);
   Runner.run(runner, engine);
 
-  for (let i = 0; i < 360; i += SPAWN_ANGLE_INTERVAL) {
-    const angle_r = i * (Math.PI / 180);
-    //const x = CENTER_X + SPAWN_RADIUS * Math.cos(angle_r);
-    //const y = CENTER_Y + SPAWN_RADIUS * Math.sin(angle_r);
-    addTileEmitter(
-      () => (CENTER_X + SPAWN_RADIUS * Math.cos(angle_r)),
-      () => (CENTER_Y + SPAWN_RADIUS * Math.sin(angle_r)),
-      angle_r + Math.PI / 2,
-      SPAWN_INTERVAL);
-  }
+  setInterval(() => spawnTiles(), SPAWN_INTERVAL);
+
+  spawnTiles()
 
   // Remove out of bound elements every 1s
-  setInterval(() => removeOutOfBoundsBodies(Matter.Composite.allBodies(world)), 300);
+  setInterval(() => removeOutOfBoundsBodies(Matter.Composite.allBodies(world)), 1000);
 
+  // Ensure the fake person remains vertical
   setInterval(() => {
     CENTER_X = FAKE_PERSON.position.x;
     CENTER_Y = FAKE_PERSON.position.y;
+    if (FAKE_PERSON.position.y > CANVAS_HEIGHT) {
+      FAKE_PERSON.position.y = CANVAS_HEIGHT;
+    }
     Matter.Body.setAngle(FAKE_PERSON, 0);
     //Matter.Body.setMass(FAKE_PERSON, 100);
-
   }, 10);
-
 
   const mouse = Matter.Mouse.create(render.canvas);
   const mouseConstraint = Matter.MouseConstraint.create(engine, {
@@ -158,5 +278,6 @@ document.addEventListener("DOMContentLoaded", function () {
     FAKE_PERSON,
     GROUND,
   ]);
+}
 
-});
+document.addEventListener("DOMContentLoaded", start);
