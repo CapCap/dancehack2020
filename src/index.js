@@ -32,9 +32,9 @@ const RECT_HEIGHT = 5;
 let CENTER_X = CANVAS_WIDTH / 2.0;
 let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
-const SPAWN_POINT_OFFSET = 20;
-const SPAWN_MAX_DISTANCE = 75;
-const SPAWN_INTERVAL = 500;
+const SPAWN_POINT_OFFSET = 30;
+const SPAWN_MAX_INTEREVAL_APART = 100;
+const SPAWN_INTERVAL = 200;
 const SPAWN_HEIGHT_CUTOFF = CANVAS_HEIGHT - 50;
 
 // Should the tiles collide with one another
@@ -47,9 +47,9 @@ FAKE_PERSON.collisionFilter.group = 0;
 FAKE_PERSON.collisionFilter.category = 0b0001;
 FAKE_PERSON.collisionFilter.mask = 0b0011;
 
-// disables the fake person collider. Helps with 
-FAKE_PERSON.collisionFilter.category = 0b0;
-FAKE_PERSON.collisionFilter.mask = 0b0;
+// disables the fake person collider. Helps with debugging tile spawn locations.
+//FAKE_PERSON.collisionFilter.category = 0b0;
+//FAKE_PERSON.collisionFilter.mask = 0b0;
 
 const CURRENT_POSE = {
   // Left side
@@ -95,7 +95,7 @@ function addTile(x_spawn, y_spawn, angle_r, force_vector) {
     return;
   }
 
-  const body = Bodies.rectangle(x_spawn, y_spawn, RECT_WIDTH, RECT_HEIGHT);
+  const body = Bodies.circle(x_spawn, y_spawn, RECT_WIDTH);
   Matter.Body.setAngle(body, angle_r);
   body.collisionFilter.group = 0;
   if (!TILES_COLLIDE) {
@@ -168,7 +168,7 @@ function spawnTiles() {
     points.push([FAKE_PERSON.vertices[i].x, FAKE_PERSON.vertices[i].y]);
   }
   // Spawn around the radius!
-  spawnTilesAroundPolygon(points, SPAWN_POINT_OFFSET, SPAWN_MAX_DISTANCE);
+  spawnTilesAroundPolygon(points, SPAWN_POINT_OFFSET, SPAWN_MAX_INTEREVAL_APART);
 }
 
 function updatePersonPose(newPose) {
