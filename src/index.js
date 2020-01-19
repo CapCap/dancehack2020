@@ -6,7 +6,10 @@ const Engine = Matter.Engine,
   Render = Matter.Render,
   Runner = Matter.Runner,
   World = Matter.World,
-  Bodies = Matter.Bodies;
+  Bodies = Matter.Bodies,
+  Vector = Matter.Vector,
+  Vertices = Matter.Vertices
+;
 
 const engine = Engine.create();
 engine.constraintIterations = 1;
@@ -33,9 +36,17 @@ let CENTER_X = CANVAS_WIDTH / 2.0;
 let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
 const SPAWN_POINT_OFFSET = 30;
-const SPAWN_MAX_INTEREVAL_APART = 75;
+const SPAWN_MAX_INTERVAL_APART = 75;
 const SPAWN_INTERVAL = 200;
 const SPAWN_HEIGHT_CUTOFF = CANVAS_HEIGHT - 50;
+const SPAWN_MIN_LENGTH_CUTOFF = 50;
+
+const PERSON_COLLIDER_UPDATE_INTERVAL = 500;
+
+const DEBUG_PERSON_COLLIDER_COLOR = true;
+const DEBUG_RENDER_WIREFRAME_ONLY = false;
+const DEBUG_DISABLE_TILE_SPAWNING = true;
+const DEBUG_DISABLE_PERSON_COLLIDER = false;
 
 // Should the tiles collide with one another
 const TILES_COLLIDE = true;
@@ -48,46 +59,54 @@ FAKE_PERSON.collisionFilter.category = 0b0001;
 FAKE_PERSON.collisionFilter.mask = 0b0011;
 
 // disables the fake person collider. Helps with debugging tile spawn locations.
-//FAKE_PERSON.collisionFilter.category = 0b0;
-//FAKE_PERSON.collisionFilter.mask = 0b0;
+if (DEBUG_DISABLE_PERSON_COLLIDER) {
+  FAKE_PERSON.collisionFilter.category = 0b0;
+  FAKE_PERSON.collisionFilter.mask = 0b0;
+}
 
+
+// TODO: THIS IS UPSIDE DOWN :-(
 const CURRENT_POSE = {
-  head_center: [110, 115],
-  head_radius: 10,
+  head_center: [210 * 2, CANVAS_HEIGHT - 215 * 2],
+  head_radius: 30,
+  head_circle: makeSkeletonCollider("head"),
 
   // Left side
-  left_shoulder: [100, 100],
-  left_elbow: [80, 80],
-  left_hand: [75, 60],
+  left_shoulder: [200 * 2, CANVAS_HEIGHT - 200 * 2],
+  left_elbow: [180 * 2, CANVAS_HEIGHT - 180 * 2],
+  left_hand: [175 * 2, CANVAS_HEIGHT - 160 * 2],
   left_shoulder_to_elbow_width: 10,
   left_elbow_to_hand_width: 10,
-  left_shoulder_to_elbow_rect: makeSkeletonCollider(),
-  left_elbow_to_hand_rect: makeSkeletonCollider(),
+  left_shoulder_to_elbow_rect: makeSkeletonCollider("left_shoulder_to_elbow"),
+  left_elbow_to_hand_rect: makeSkeletonCollider("left_elbow_to_hand"),
 
-  left_hip: [100, 60],
-  left_knee: [100, 30],
-  left_foot: [100, 0],
+  left_hip: [200 * 2, CANVAS_HEIGHT - 160 * 2],
+  left_knee: [200 * 2, CANVAS_HEIGHT - 130 * 2],
+  left_foot: [200 * 2, CANVAS_HEIGHT - 100 * 2],
   left_hip_to_knee_width: 10,
   left_knee_to_foot_width: 10,
-  left_hip_to_knee_rect: makeSkeletonCollider(),
-  left_knee_to_foot_rect: makeSkeletonCollider(),
+  left_hip_to_knee_rect: makeSkeletonCollider("left_hip_to_knee"),
+  left_knee_to_foot_rect: makeSkeletonCollider("left_knee_to_foot"),
 
   // Right side
-  right_shoulder: [120, 100],
-  right_elbow: [145, 90],
-  right_hand: [165, 80],
+  right_shoulder: [220 * 2, CANVAS_HEIGHT - 200 * 2],
+  right_elbow: [245 * 2, CANVAS_HEIGHT - 190 * 2],
+  right_hand: [265 * 2, CANVAS_HEIGHT - 180 * 2],
   right_shoulder_to_elbow_width: 10,
   right_elbow_to_hand_width: 10,
-  right_shoulder_to_elbow_rect: makeSkeletonCollider(),
-  right_elbow_to_hand_rect: makeSkeletonCollider(),
+  right_shoulder_to_elbow_rect: makeSkeletonCollider("right_shoulder_to_elbow"),
+  right_elbow_to_hand_rect: makeSkeletonCollider("right_elbow_to_hand"),
 
-  right_hip: [120, 60],
-  right_knee: [135, 35],
-  right_foot: [130, 10],
+  right_hip: [220 * 2, CANVAS_HEIGHT - 160 * 2],
+  right_knee: [235 * 2, CANVAS_HEIGHT - 135 * 2],
+  right_foot: [230 * 2, CANVAS_HEIGHT - 110 * 2],
   right_hip_to_knee_width: 10,
   right_knee_to_foot_width: 10,
-  right_hip_to_knee_rect: makeSkeletonCollider(),
-  right_knee_to_foot_rect: makeSkeletonCollider(),
+  right_hip_to_knee_rect: makeSkeletonCollider("right_hip_to_knee"),
+  right_knee_to_foot_rect: makeSkeletonCollider("right_knee_to_foot"),
+
+  // Body.
+  body_rect: makeSkeletonCollider("body_rect"),
 };
 
 // Set up some fake poses here for testing, woo
@@ -99,19 +118,24 @@ GROUND.collisionFilter.category = 0b0100;
 GROUND.collisionFilter.mask = 0b0101;
 Matter.Body.setStatic(GROUND, true);
 
-function makeSkeletonCollider(type = "rect") {
-  let body;
-  if (type == "rect") {
-    body = Bodies.rectangle(100, 100, 100, 100);
-  } else {
-    body = Bodies.circle(100, 100, 100);
-  }
+function makeHead(x, y, radius) {
+  const body = Bodies.circle(10, 10, 50);
   body.collisionFilter.group = 0;
   body.collisionFilter.category = 0b1000;
   body.collisionFilter.mask = 0b0001;
+  body.label = "head";
+  return body;
+}
+
+function makeSkeletonCollider(name) {
+  const body = Bodies.rectangle(10, 10, 15, 15);
+  body.collisionFilter.group = 0;
+  body.collisionFilter.category = 0b1000;
+  body.collisionFilter.mask = 0b0001;
+  body.label = name;
 
   // ensure we're not pushed around by the balls
-  Matter.Body.setStatic(body, true);
+  // Matter.Body.setStatic(body, true);
 
   return body;
 }
@@ -160,11 +184,23 @@ function removeOutOfBoundsBodies(bodies) {
   console.log(`Removed ${count} out of bound entities`);
 }
 
+function alignRectToLine(line_pt1, line_pt2, rect, width) {
+  console.log(">>", line_pt1, line_pt2)
+  const midpoint = GeomUtils.getMidpoint(line_pt1, line_pt2);
+  Matter.Body.setVelocity(rect, {x: 0, y: 0});
+  Matter.Body.setPosition(rect, {x: midpoint[0], y: midpoint[1]});
 
-function spawnTilesAroundPolygon(polygon, distance, max_segment_length) {
-  const center = GeomUtils.center_of_rect(polygon);
+  Matter.Body.setStatic(rect, true);
+  console.log("midpoint", midpoint)
+  //Matter.Body.translate(rect, [1, 1]);
+  console.log(rect)
+  //TODO: angles and shit
+}
 
-  const perp_point_lines = GeomUtils.pointsPerpendicularToAndOutsideOfPolygon(polygon, distance, max_segment_length);
+function spawnTilesAroundPolygon(polygon, distance, max_segment_length, min_segment_length) {
+  const center = GeomUtils.centerOfRect(polygon);
+
+  const perp_point_lines = GeomUtils.pointsPerpendicularToAndOutsideOfPolygon(polygon, distance, max_segment_length, min_segment_length);
   let angle_r;
   let p1;
   let p2;
@@ -190,12 +226,17 @@ function spawnTilesAroundPolygon(polygon, distance, max_segment_length) {
 }
 
 function spawnTiles() {
+  if (DEBUG_DISABLE_TILE_SPAWNING) {
+    return;
+  }/*
   const points = [];
   for (let i = 0; i < FAKE_PERSON.vertices.length; i++) {
     points.push([FAKE_PERSON.vertices[i].x, FAKE_PERSON.vertices[i].y]);
   }
+  */
+  
   // Spawn around the radius!
-  spawnTilesAroundPolygon(points, SPAWN_POINT_OFFSET, SPAWN_MAX_INTEREVAL_APART);
+  spawnTilesAroundPolygon(points, SPAWN_POINT_OFFSET, SPAWN_MAX_INTERVAL_APART, SPAWN_MIN_LENGTH_CUTOFF);
 }
 
 function updatePersonPose(newPose) {
@@ -227,9 +268,94 @@ function updatePersonPose(newPose) {
   CURRENT_POSE.right_foot = newPose.right_foot;
   CURRENT_POSE.right_hip_to_knee_width = newPose.right_hip_to_knee_width;
   CURRENT_POSE.right_knee_to_foot_width = newPose.right_knee_to_foot_width;
+  updatePersonColliders();
+}
+
+function updateAbsoluteRectangleVertices(rect, new_vertices, center = null) {
+  if (!center) {
+    center = Vertices.centre(new_vertices);
+  }
+
 }
 
 function updatePersonColliders() {
+  //World.remove(world, CURRENT_POSE.head_circle);
+  //CURRENT_POSE.head_circle = makeHead(CURRENT_POSE.head_center[0], CURRENT_POSE.head_center[1], CURRENT_POSE.head_radius);
+  //World.add(world, [CURRENT_POSE.head_circle]);
+  Matter.Body.setVelocity(CURRENT_POSE.head_circle, {x: 0, y: 0});
+  Matter.Body.setPosition(CURRENT_POSE.head_circle, {x: CURRENT_POSE.head_center[0], y: CURRENT_POSE.head_center[1]});
+  CURRENT_POSE.head_circle.circleRadius = CURRENT_POSE.head_radius;
+
+  if (DEBUG_PERSON_COLLIDER_COLOR) {
+    // Head is blue
+    // Elbow->Hands are blue
+    // Shoulders->Elbows are green
+    // Hip->Knees are red
+    // Knee->Feet are white
+    // Right side of body is brighter hue than left side
+    // Body is pink
+    CURRENT_POSE.left_shoulder_to_elbow_rect.render.fillStyle = "#009900";
+    CURRENT_POSE.left_elbow_to_hand_rect.render.fillStyle = "#000099";
+
+    CURRENT_POSE.right_shoulder_to_elbow_rect.render.fillStyle = "#00FF00";
+    CURRENT_POSE.right_elbow_to_hand_rect.render.fillStyle = "#0000FF";
+
+    CURRENT_POSE.left_hip_to_knee_rect.render.fillStyle = "#990000";
+    CURRENT_POSE.left_knee_to_foot_rect.render.fillStyle = "#FF0000";
+
+    CURRENT_POSE.right_hip_to_knee_rect.render.fillStyle = "#999999";
+    CURRENT_POSE.right_knee_to_foot_rect.render.fillStyle = "#FFFFFF";
+
+    CURRENT_POSE.head_circle.render.fillStyle = "#0000FF";
+    CURRENT_POSE.body_rect.render.fillStyle = "#ff7ee3";
+  }
+
+  alignRectToLine(CURRENT_POSE.left_shoulder, CURRENT_POSE.left_elbow, CURRENT_POSE.left_shoulder_to_elbow_rect, CURRENT_POSE.left_shoulder_to_elbow_width);
+  alignRectToLine(CURRENT_POSE.left_elbow, CURRENT_POSE.left_hand, CURRENT_POSE.left_elbow_to_hand_rect, CURRENT_POSE.left_elbow_to_hand_width);
+
+  alignRectToLine(CURRENT_POSE.right_shoulder, CURRENT_POSE.right_elbow, CURRENT_POSE.right_shoulder_to_elbow_rect, CURRENT_POSE.right_shoulder_to_elbow_width);
+  alignRectToLine(CURRENT_POSE.right_elbow, CURRENT_POSE.right_hand, CURRENT_POSE.right_elbow_to_hand_rect, CURRENT_POSE.right_shoulder_to_elbow_width);
+
+  alignRectToLine(CURRENT_POSE.left_hip, CURRENT_POSE.left_knee, CURRENT_POSE.left_hip_to_knee_rect, CURRENT_POSE.left_hip_to_knee_width);
+  alignRectToLine(CURRENT_POSE.left_knee, CURRENT_POSE.left_foot, CURRENT_POSE.left_knee_to_foot_rect, CURRENT_POSE.left_knee_to_foot_width);
+
+  alignRectToLine(CURRENT_POSE.right_hip, CURRENT_POSE.right_knee, CURRENT_POSE.right_hip_to_knee_rect, CURRENT_POSE.right_hip_to_knee_width);
+  alignRectToLine(CURRENT_POSE.right_knee, CURRENT_POSE.right_foot, CURRENT_POSE.right_knee_to_foot_rect, CURRENT_POSE.right_knee_to_foot_width);
+
+  const body_vertices = Vertices.clockwiseSort([
+    Vector.create(CURRENT_POSE.left_shoulder[0], CURRENT_POSE.left_shoulder[1]),
+    Vector.create(CURRENT_POSE.right_shoulder[0], CURRENT_POSE.right_shoulder[1]),
+    Vector.create(CURRENT_POSE.left_hip[0], CURRENT_POSE.left_hip[1]),
+    Vector.create(CURRENT_POSE.right_hip[0], CURRENT_POSE.right_hip[1]),
+  ]);
+
+  const center = Vertices.centre(body_vertices);
+  Vertices.create(body_vertices, CURRENT_POSE.body_rect);
+  Matter.Body.setVelocity(CURRENT_POSE.body_rect, {x: 0, y: 0});
+  Matter.Body.setPosition(CURRENT_POSE.body_rect, center);
+  //Matter.Body.setVertices(CURRENT_POSE.body_rect, body_vertices);
+  console.log(body_vertices, CURRENT_POSE.body_rect);
+
+  z = {
+    // Left side
+    left_shoulder: [100, 100],
+    left_elbow: [80, 80],
+    left_hand: [75, 60],
+
+    left_hip: [100, 60],
+    left_knee: [100, 30],
+    left_foot: [100, 0],
+
+    // Right side
+    right_shoulder: [120, 100],
+    right_elbow: [145, 90],
+    right_hand: [165, 80],
+
+    right_hip: [120, 60],
+    right_knee: [135, 35],
+    right_foot: [130, 10],
+  };
+
 }
 
 function start() {
@@ -241,7 +367,7 @@ function start() {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
       showVelocity: false,
-      wireframes: true,
+      wireframes: DEBUG_RENDER_WIREFRAME_ONLY,
     }
   });
 
@@ -250,17 +376,7 @@ function start() {
   Render.run(render);
   Runner.run(runner, engine);
 
-  World.add(world, [
-    CURRENT_POSE.left_shoulder_to_elbow_rect,
-    CURRENT_POSE.left_elbow_to_hand_rect,
-    CURRENT_POSE.left_hip_to_knee_rect,
-    CURRENT_POSE.left_knee_to_foot_rect,
-
-    CURRENT_POSE.right_shoulder_to_elbow_rect,
-    CURRENT_POSE.right_elbow_to_hand_rect,
-    CURRENT_POSE.right_hip_to_knee_rect,
-    CURRENT_POSE.right_knee_to_foot_rect,
-  ])
+  //setInterval(() => updatePersonColliders(), PERSON_COLLIDER_UPDATE_INTERVAL);
 
   setInterval(() => spawnTiles(), SPAWN_INTERVAL);
 
@@ -295,6 +411,21 @@ function start() {
     FAKE_PERSON,
     GROUND,
   ]);
+
+  World.add(world, [
+    CURRENT_POSE.head_circle,
+    CURRENT_POSE.left_shoulder_to_elbow_rect,
+    CURRENT_POSE.left_elbow_to_hand_rect,
+    CURRENT_POSE.left_hip_to_knee_rect,
+    CURRENT_POSE.left_knee_to_foot_rect,
+
+    CURRENT_POSE.right_shoulder_to_elbow_rect,
+    CURRENT_POSE.right_elbow_to_hand_rect,
+    CURRENT_POSE.right_hip_to_knee_rect,
+    CURRENT_POSE.right_knee_to_foot_rect,
+  ]);
+
+  updatePersonColliders();
 }
 
 document.addEventListener("DOMContentLoaded", start);

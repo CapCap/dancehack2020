@@ -26,7 +26,7 @@ function distanceBetweenPoints(point1, point2) {
   return Math.sqrt(Math.pow(point2[0] - point1[0], 2) + Math.pow(point2[1] - point1[1], 2));
 }
 
-function center_of_rect(coords) {
+function centerOfRect(coords) {
   let min_x = 10e10;
   let max_x = 0;
   let min_y = 10e10;
@@ -49,11 +49,19 @@ function center_of_rect(coords) {
   return [(min_x + max_x) / 2, (min_y + max_y) / 2];
 }
 
-function pointsPerpendicularToLine(line_pt1, line_pt2, distance, max_segment_length) {
-  const midpoint = [(line_pt2[0] + line_pt1[0]) / 2.0, (line_pt2[1] + line_pt1[1]) / 2.0];
-  if (distanceBetweenPoints(line_pt1, line_pt2) > max_segment_length) {
+function getMidpoint(line_pt1, line_pt2) {
+  return [(line_pt2[0] + line_pt1[0]) / 2.0, (line_pt2[1] + line_pt1[1]) / 2.0];
+}
+
+function pointsPerpendicularToLine(line_pt1, line_pt2, distance, max_segment_length, min_segment_length) {
+  const midpoint = getMidpoint(line_pt1, line_pt2);
+  const dist_between_points = distanceBetweenPoints(line_pt1, line_pt2);
+  if (dist_between_points > max_segment_length) {
     return pointsPerpendicularToLine(line_pt1, midpoint, distance, max_segment_length)
       .concat(pointsPerpendicularToLine(midpoint, line_pt2, distance, max_segment_length))
+  }
+  if (dist_between_points < min_segment_length) {
+    return [];
   }
 
   const perpendicular_r = linePointsToRadians(line_pt1, line_pt2) + Math.PI / 2;
@@ -64,12 +72,12 @@ function pointsPerpendicularToLine(line_pt1, line_pt2, distance, max_segment_len
   return [[pt1, pt2]];
 }
 
-function pointsPerpendicularToAndOutsideOfPolygon(poly_points, distance, max_segment_length = 100) {
+function pointsPerpendicularToAndOutsideOfPolygon(poly_points, distance, max_segment_length = 100, min_segment_length = 50) {
   let res_perp_points_arr = [];
   for (let i = 0; i < poly_points.length; i++) {
     const start_pt = poly_points[i];
     const end_pt = i + 1 < poly_points.length ? poly_points[i + 1] : poly_points[0];
-    const perp_points = pointsPerpendicularToLine(start_pt, end_pt, distance, max_segment_length);
+    const perp_points = pointsPerpendicularToLine(start_pt, end_pt, distance, max_segment_length, min_segment_length);
     res_perp_points_arr = res_perp_points_arr.concat(perp_points)
   }
   return res_perp_points_arr;
@@ -77,7 +85,8 @@ function pointsPerpendicularToAndOutsideOfPolygon(poly_points, distance, max_seg
 
 
 module.exports = {
-  center_of_rect,
+  centerOfRect,
+  getMidpoint,
   slopeToRadians,
   degreesToRadians,
   pointsPerpendicularToLine,
