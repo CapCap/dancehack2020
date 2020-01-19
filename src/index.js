@@ -33,7 +33,7 @@ let CENTER_X = CANVAS_WIDTH / 2.0;
 let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
 const SPAWN_POINT_OFFSET = 30;
-const SPAWN_MAX_INTEREVAL_APART = 100;
+const SPAWN_MAX_INTEREVAL_APART = 75;
 const SPAWN_INTERVAL = 200;
 const SPAWN_HEIGHT_CUTOFF = CANVAS_HEIGHT - 50;
 
@@ -52,42 +52,69 @@ FAKE_PERSON.collisionFilter.mask = 0b0011;
 //FAKE_PERSON.collisionFilter.mask = 0b0;
 
 const CURRENT_POSE = {
+  head_center: [110, 115],
+  head_radius: 10,
+
   // Left side
-  left_shoulder: [0, 0],
-  left_elbow: [0, 0],
-  left_hand: [0, 0],
+  left_shoulder: [100, 100],
+  left_elbow: [80, 80],
+  left_hand: [75, 60],
   left_shoulder_to_elbow_width: 10,
   left_elbow_to_hand_width: 10,
+  left_shoulder_to_elbow_rect: makeSkeletonCollider(),
+  left_elbow_to_hand_rect: makeSkeletonCollider(),
 
-  left_hip: [0, 0],
-  left_knee: [0, 0],
-  left_foot: [0, 0],
+  left_hip: [100, 60],
+  left_knee: [100, 30],
+  left_foot: [100, 0],
   left_hip_to_knee_width: 10,
   left_knee_to_foot_width: 10,
+  left_hip_to_knee_rect: makeSkeletonCollider(),
+  left_knee_to_foot_rect: makeSkeletonCollider(),
 
   // Right side
-  right_shoulder: [0, 0],
-  right_elbow: [0, 0],
-  right_hand: [0, 0],
+  right_shoulder: [120, 100],
+  right_elbow: [145, 90],
+  right_hand: [165, 80],
   right_shoulder_to_elbow_width: 10,
   right_elbow_to_hand_width: 10,
+  right_shoulder_to_elbow_rect: makeSkeletonCollider(),
+  right_elbow_to_hand_rect: makeSkeletonCollider(),
 
-  right_hip: [0, 0],
-  right_knee: [0, 0],
-  right_foot: [0, 0],
+  right_hip: [120, 60],
+  right_knee: [135, 35],
+  right_foot: [130, 10],
   right_hip_to_knee_width: 10,
   right_knee_to_foot_width: 10,
+  right_hip_to_knee_rect: makeSkeletonCollider(),
+  right_knee_to_foot_rect: makeSkeletonCollider(),
 };
 
 // Set up some fake poses here for testing, woo
 // TODO: actually set em up, yo
-
 
 const GROUND = Bodies.rectangle(0, CANVAS_HEIGHT, CANVAS_WIDTH * 2, 10);
 GROUND.collisionFilter.group = 0;
 GROUND.collisionFilter.category = 0b0100;
 GROUND.collisionFilter.mask = 0b0101;
 Matter.Body.setStatic(GROUND, true);
+
+function makeSkeletonCollider(type = "rect") {
+  let body;
+  if (type == "rect") {
+    body = Bodies.rectangle(100, 100, 100, 100);
+  } else {
+    body = Bodies.circle(100, 100, 100);
+  }
+  body.collisionFilter.group = 0;
+  body.collisionFilter.category = 0b1000;
+  body.collisionFilter.mask = 0b0001;
+
+  // ensure we're not pushed around by the balls
+  Matter.Body.setStatic(body, true);
+
+  return body;
+}
 
 function addTile(x_spawn, y_spawn, angle_r, force_vector) {
   // Don't spawn too close to the ground?
@@ -172,6 +199,9 @@ function spawnTiles() {
 }
 
 function updatePersonPose(newPose) {
+  CURRENT_POSE.head_center = newPose.head_center;
+  CURRENT_POSE.head_radius = newPose.head_radius;
+
   // Left side
   CURRENT_POSE.left_shoulder = newPose.left_shoulder;
   CURRENT_POSE.left_elbow = newPose.left_elbow;
@@ -199,6 +229,9 @@ function updatePersonPose(newPose) {
   CURRENT_POSE.right_knee_to_foot_width = newPose.right_knee_to_foot_width;
 }
 
+function updatePersonColliders() {
+}
+
 function start() {
   // create renderer
   const render = Render.create({
@@ -217,8 +250,19 @@ function start() {
   Render.run(render);
   Runner.run(runner, engine);
 
-  setInterval(() => spawnTiles(), SPAWN_INTERVAL);
+  World.add(world, [
+    CURRENT_POSE.left_shoulder_to_elbow_rect,
+    CURRENT_POSE.left_elbow_to_hand_rect,
+    CURRENT_POSE.left_hip_to_knee_rect,
+    CURRENT_POSE.left_knee_to_foot_rect,
 
+    CURRENT_POSE.right_shoulder_to_elbow_rect,
+    CURRENT_POSE.right_elbow_to_hand_rect,
+    CURRENT_POSE.right_hip_to_knee_rect,
+    CURRENT_POSE.right_knee_to_foot_rect,
+  ])
+
+  setInterval(() => spawnTiles(), SPAWN_INTERVAL);
 
   // Remove out of bound elements every 1s
   setInterval(() => removeOutOfBoundsBodies(Matter.Composite.allBodies(world)), 1000);
