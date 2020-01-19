@@ -195,6 +195,7 @@ function alignRectToLine(line_pt1, line_pt2, rect, width) {
   //Matter.Body.translate(rect, [1, 1]);
   console.log(rect)
   //TODO: angles and shit
+  // TODO: UPDATE THE VECTOR DIRECTLY
 }
 
 function spawnTilesAroundPolygon(polygon, distance, max_segment_length, min_segment_length) {
@@ -234,7 +235,7 @@ function spawnTiles() {
     points.push([FAKE_PERSON.vertices[i].x, FAKE_PERSON.vertices[i].y]);
   }
   */
-  
+
   // Spawn around the radius!
   spawnTilesAroundPolygon(points, SPAWN_POINT_OFFSET, SPAWN_MAX_INTERVAL_APART, SPAWN_MIN_LENGTH_CUTOFF);
 }
@@ -287,7 +288,7 @@ function updatePersonColliders() {
   CURRENT_POSE.head_circle.circleRadius = CURRENT_POSE.head_radius;
 
   if (DEBUG_PERSON_COLLIDER_COLOR) {
-    // Head is blue
+    // Head is yellow
     // Elbow->Hands are blue
     // Shoulders->Elbows are green
     // Hip->Knees are red
@@ -306,7 +307,8 @@ function updatePersonColliders() {
     CURRENT_POSE.right_hip_to_knee_rect.render.fillStyle = "#999999";
     CURRENT_POSE.right_knee_to_foot_rect.render.fillStyle = "#FFFFFF";
 
-    CURRENT_POSE.head_circle.render.fillStyle = "#0000FF";
+    CURRENT_POSE.head_circle.render.fillStyle = "#f1ff01";
+
     CURRENT_POSE.body_rect.render.fillStyle = "#ff7ee3";
   }
 
@@ -322,6 +324,8 @@ function updatePersonColliders() {
   alignRectToLine(CURRENT_POSE.right_hip, CURRENT_POSE.right_knee, CURRENT_POSE.right_hip_to_knee_rect, CURRENT_POSE.right_hip_to_knee_width);
   alignRectToLine(CURRENT_POSE.right_knee, CURRENT_POSE.right_foot, CURRENT_POSE.right_knee_to_foot_rect, CURRENT_POSE.right_knee_to_foot_width);
 
+  // TODO: UPDATING THE BODY DOES NOT CURRENTLY WORK. UGH.
+  // TODO: SETVERTICES MAY WANT A DELTA AROUND THE OBJECTS CENTER? DOCS ARE CONFUSING AF.
   const body_vertices = Vertices.clockwiseSort([
     Vector.create(CURRENT_POSE.left_shoulder[0], CURRENT_POSE.left_shoulder[1]),
     Vector.create(CURRENT_POSE.right_shoulder[0], CURRENT_POSE.right_shoulder[1]),
@@ -330,31 +334,12 @@ function updatePersonColliders() {
   ]);
 
   const center = Vertices.centre(body_vertices);
-  Vertices.create(body_vertices, CURRENT_POSE.body_rect);
+  //Vertices.create(body_vertices, CURRENT_POSE.body_rect);
+  Matter.Body.setVertices(CURRENT_POSE.body_rect, body_vertices);
   Matter.Body.setVelocity(CURRENT_POSE.body_rect, {x: 0, y: 0});
   Matter.Body.setPosition(CURRENT_POSE.body_rect, center);
-  //Matter.Body.setVertices(CURRENT_POSE.body_rect, body_vertices);
+
   console.log(body_vertices, CURRENT_POSE.body_rect);
-
-  z = {
-    // Left side
-    left_shoulder: [100, 100],
-    left_elbow: [80, 80],
-    left_hand: [75, 60],
-
-    left_hip: [100, 60],
-    left_knee: [100, 30],
-    left_foot: [100, 0],
-
-    // Right side
-    right_shoulder: [120, 100],
-    right_elbow: [145, 90],
-    right_hand: [165, 80],
-
-    right_hip: [120, 60],
-    right_knee: [135, 35],
-    right_foot: [130, 10],
-  };
 
 }
 
