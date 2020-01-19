@@ -1,4 +1,5 @@
 const Matter = require("matter-js");
+const GeomUtils = require("./geom_utils.js");
 
 
 const Engine = Matter.Engine,
@@ -6,7 +7,6 @@ const Engine = Matter.Engine,
   Runner = Matter.Runner,
   World = Matter.World,
   Bodies = Matter.Bodies;
-
 
 const engine = Engine.create();
 engine.constraintIterations = 1;
@@ -32,26 +32,41 @@ const RECT_HEIGHT = 5;
 let CENTER_X = CANVAS_WIDTH / 2.0;
 let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
-
 const SPAWN_RADIUS = 200;
-const SPAWN_ANGLE_INTERVAL = 45;
-const SPAWN_INTERVAL = 500;
+const SPAWN_ANGLE_INTERVAL = 25;
+const SPAWN_INTERVAL = 100;
+
+const TILES_COLLIDE = true
+
 
 const FAKE_PERSON = Bodies.rectangle(CENTER_X, CENTER_Y, 100, 300);
 FAKE_PERSON.render.fillStyle = "#4444FF";
+FAKE_PERSON.collisionFilter.group = 0;
+FAKE_PERSON.collisionFilter.category = 0b01;
+FAKE_PERSON.collisionFilter.mask = 0b11;
 
 const GROUND = Bodies.rectangle(0, CANVAS_HEIGHT, CANVAS_WIDTH * 2, 10);
-// GROUND.
-
-const position_log = {};
+Matter.Body.setStatic(GROUND, true);
 
 function addTile(x_spawn_f, y_spawn_f, angle_r) {
   const x_spawn = x_spawn_f();
   const y_spawn = y_spawn_f();
+  // Don't spawn too close to the ground?
+  if (y_spawn > CANVAS_HEIGHT - 30) {
+    return;
+  }
+
   const body = Bodies.rectangle(x_spawn, y_spawn, RECT_WIDTH, RECT_HEIGHT);
   Matter.Body.setAngle(body, angle_r);
 
-  body.render.fillStyle = "#" + Math.floor((Math.random() * 16777215) + 1000).toString(16);
+  body.collisionFilter.group = 0;
+  // Uncomment below to make the tiles not collide with one another
+  if (!TILES_COLLIDE) {
+    body.collisionFilter.category = 0b10;
+    body.collisionFilter.mask = 0b01;
+  }
+
+  // body.render.fillStyle = "#" + Math.floor((Math.random() * 16777215) + 1000).toString(16);
 
   body.force.x += (x_spawn - CENTER_X) / 1000000.0;
   body.force.y += (y_spawn - CENTER_Y) / 1000000.0;
@@ -62,7 +77,7 @@ function addTile(x_spawn_f, y_spawn_f, angle_r) {
   body.slop = 0.0005;
 
   World.add(world, [
-    body
+    body,
   ]);
 }
 
@@ -81,7 +96,7 @@ function removeOutOfBoundsBodies(bodies) {
     }
   }
 
-  console.log(`Removed ${count} entities`);
+  console.log(`Removed ${count} out of bound entities`);
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -93,8 +108,8 @@ document.addEventListener("DOMContentLoaded", function () {
     options: {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
-      showVelocity: true,
-      wireframes: false,
+      showVelocity: false,
+      wireframes: true,
     }
   });
 
@@ -121,7 +136,7 @@ document.addEventListener("DOMContentLoaded", function () {
     CENTER_X = FAKE_PERSON.position.x;
     CENTER_Y = FAKE_PERSON.position.y;
     Matter.Body.setAngle(FAKE_PERSON, 0);
-    Matter.Body.setMass(FAKE_PERSON, 100);
+    //Matter.Body.setMass(FAKE_PERSON, 100);
 
   }, 10);
 
@@ -132,7 +147,7 @@ document.addEventListener("DOMContentLoaded", function () {
     constraint: {
       stiffness: 0.2,
       render: {
-        visible: false
+        visible: true
       }
     }
   });
