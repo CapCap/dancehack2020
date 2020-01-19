@@ -10,6 +10,8 @@ const Engine = Matter.Engine,
 
 const engine = Engine.create();
 engine.constraintIterations = 1;
+engine.positionIterations = 1;
+engine.velocityIterationsNumber = 1;
 
 const world = engine.world;
 world.gravity.x = 0;
@@ -20,33 +22,50 @@ const runner = Runner.create();
 runner.delta = 100;
 runner.isFixed = true;
 
-const CANVAS_WIDTH = 800;
+
+const CANVAS_WIDTH = 1200.;
 const CANVAS_HEIGHT = 600;
 
 const RECT_WIDTH = 20;
 const RECT_HEIGHT = 5;
 
+let CENTER_X = CANVAS_WIDTH / 2.0;
+let CENTER_Y = CANVAS_HEIGHT / 2.0;
+
+
+const SPAWN_RADIUS = 200;
+const SPAWN_ANGLE_INTERVAL = 10;
+const SPAWN_TIMEOUT = 200;
+
+const FAKE_PERSON = Bodies.rectangle(CENTER_X, CENTER_Y, 100, 300);
+
+
 const position_log = {};
 
-function addTile(x_start, y_start, angle) {
-  const body = Bodies.rectangle(x_start, y_start, RECT_WIDTH, RECT_HEIGHT);
-  Matter.Body.setAngle(body, angle);
-  Matter.Body.setAngularVelocity(body, 0.001);
-  console.log(angle)
+function addTile(x_spawn_f, y_spawn_f, angle_r) {
+  const x_spawn = x_spawn_f();
+  const y_spawn = y_spawn_f();
+  const body = Bodies.rectangle(x_spawn, y_spawn, RECT_WIDTH, RECT_HEIGHT);
+  Matter.Body.setAngle(body, angle_r);
+  // Matter.Body.setMass(body, 0);
+
+  body.force.x += (x_spawn - CENTER_X) / 1000000.0;
+  body.force.y += (y_spawn - CENTER_Y) / 1000000.0;
+
   body.friction = 0;
-  //body.velocity = 0.000000000000001;
   body.frictionAir = 0;
   body.frictionStatic = 0;
-  body.slop = 0.005;
-  //body.velocity = 0.00000001;
+  body.slop = 0.0005;
+
+  body.render.fillStyle = "red";
+
   World.add(world, [
     body
   ]);
 }
 
-function addTileEmitter(x_start, y_start, angle, timeout = 300) {
-  //addTile(x_start, y_start, angle)
-  setInterval(() => addTile(x_start, y_start, angle), timeout);
+function addTileEmitter(x_start_f, y_start_f, angle_r, timeout = 300) {
+  setInterval(() => addTile(x_start_f, y_start_f, angle_r), timeout);
 }
 
 function removeOutOfBoundsBodies(bodies) {
@@ -54,27 +73,6 @@ function removeOutOfBoundsBodies(bodies) {
 
   for (let i = 0; i < bodies.length; i++) {
     let body = bodies[i];
-    /*
-    if (body.collisionFilter.mask != 0) {
-      if (!position_log[body.id]) {
-        position_log[body.id] = []
-      }
-      position_log[body.id].push([body.position.x, body.position.y]);
-
-      if (position_log[body.id].length > 1) {
-        const positions = position_log[body.id];
-        const diff_x = positions[0][0] - positions[1][0];
-        const diff_y = positions[0][1] - positions[1][1];
-        //console.log(body)
-        //body.force = {x: diff_x / 10.0, y: diff_y / 10.0};
-        //exit(1)
-
-        //body.collisionFilter.mask = 0;
-      }
-
-    }
-    */
-
     if (body.position.x > CANVAS_WIDTH || body.position.x < 0 || body.position.y > CANVAS_HEIGHT || body.position.y < 0) {
       World.remove(world, body);
       count++;
@@ -93,35 +91,56 @@ document.addEventListener("DOMContentLoaded", function () {
     options: {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
-      // showVelocity: true
+      showVelocity: true
     }
   });
 
   // run the engine
   Engine.run(engine);
-
   Render.run(render);
-
   Runner.run(runner, engine);
 
-  const spawn_x = CANVAS_WIDTH / 2;
-  const spawn_y = CANVAS_HEIGHT / 2;
-  const radius = 100;
-  for (let i = 0; i < 180; i += 30) {
+  for (let i = 0; i < 360; i += SPAWN_ANGLE_INTERVAL) {
     const angle_r = i * (Math.PI / 180);
-    const x = spawn_x + radius * Math.cos(angle_r);
-    const y = spawn_y + radius * Math.sin(angle_r);
-    addTileEmitter(x, y, i, 1000);
+    //const x = CENTER_X + SPAWN_RADIUS * Math.cos(angle_r);
+    //const y = CENTER_Y + SPAWN_RADIUS * Math.sin(angle_r);
+    addTileEmitter(
+      () => (CENTER_X + SPAWN_RADIUS * Math.cos(angle_r)),
+      () => (CENTER_Y + SPAWN_RADIUS * Math.sin(angle_r)),
+      angle_r + Math.PI / 2,
+      SPAWN_TIMEOUT);
   }
 
   // Remove out of bound elements every 1s
   setInterval(() => removeOutOfBoundsBodies(Matter.Composite.allBodies(world)), 300);
+
+  setInterval(() => {
+    CENTER_X = FAKE_PERSON.position.x;
+    CENTER_Y = FAKE_PERSON.position.y;
+  }, 10);
+
+
+  const mouse = Matter.Mouse.create(render.canvas);
+  const mouseConstraint = Matter.MouseConstraint.create(engine, {
+    mouse: mouse,
+    constraint: {
+      stiffness: 0.2,
+      render: {
+        visible: false
+      }
+    }
+  });
+  World.add(world, mouseConstraint);
+  render.mouse = mouse;
+
+  World.add(world, [
+    FAKE_PERSON
+  ]);
 
   Render.lookAt(render, {
     min: {x: 0, y: 0},
     max: {x: 800, y: 600}
   });
 
-  console.log("wut")
 
 });
