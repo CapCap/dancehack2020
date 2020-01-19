@@ -23,7 +23,7 @@ runner.delta = 100;
 runner.isFixed = true;
 
 
-const CANVAS_WIDTH = 1200.;
+const CANVAS_WIDTH = 1200;
 const CANVAS_HEIGHT = 600;
 
 const RECT_WIDTH = 20;
@@ -34,11 +34,14 @@ let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
 
 const SPAWN_RADIUS = 200;
-const SPAWN_ANGLE_INTERVAL = 10;
-const SPAWN_TIMEOUT = 200;
+const SPAWN_ANGLE_INTERVAL = 45;
+const SPAWN_INTERVAL = 500;
 
 const FAKE_PERSON = Bodies.rectangle(CENTER_X, CENTER_Y, 100, 300);
+FAKE_PERSON.render.fillStyle = "#4444FF";
 
+const GROUND = Bodies.rectangle(0, CANVAS_HEIGHT, CANVAS_WIDTH * 2, 10);
+// GROUND.
 
 const position_log = {};
 
@@ -47,7 +50,8 @@ function addTile(x_spawn_f, y_spawn_f, angle_r) {
   const y_spawn = y_spawn_f();
   const body = Bodies.rectangle(x_spawn, y_spawn, RECT_WIDTH, RECT_HEIGHT);
   Matter.Body.setAngle(body, angle_r);
-  // Matter.Body.setMass(body, 0);
+
+  body.render.fillStyle = "#" + Math.floor((Math.random() * 16777215) + 1000).toString(16);
 
   body.force.x += (x_spawn - CENTER_X) / 1000000.0;
   body.force.y += (y_spawn - CENTER_Y) / 1000000.0;
@@ -56,8 +60,6 @@ function addTile(x_spawn_f, y_spawn_f, angle_r) {
   body.frictionAir = 0;
   body.frictionStatic = 0;
   body.slop = 0.0005;
-
-  body.render.fillStyle = "red";
 
   World.add(world, [
     body
@@ -91,7 +93,8 @@ document.addEventListener("DOMContentLoaded", function () {
     options: {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
-      showVelocity: true
+      showVelocity: true,
+      wireframes: false,
     }
   });
 
@@ -108,7 +111,7 @@ document.addEventListener("DOMContentLoaded", function () {
       () => (CENTER_X + SPAWN_RADIUS * Math.cos(angle_r)),
       () => (CENTER_Y + SPAWN_RADIUS * Math.sin(angle_r)),
       angle_r + Math.PI / 2,
-      SPAWN_TIMEOUT);
+      SPAWN_INTERVAL);
   }
 
   // Remove out of bound elements every 1s
@@ -117,6 +120,9 @@ document.addEventListener("DOMContentLoaded", function () {
   setInterval(() => {
     CENTER_X = FAKE_PERSON.position.x;
     CENTER_Y = FAKE_PERSON.position.y;
+    Matter.Body.setAngle(FAKE_PERSON, 0);
+    Matter.Body.setMass(FAKE_PERSON, 100);
+
   }, 10);
 
 
@@ -134,13 +140,8 @@ document.addEventListener("DOMContentLoaded", function () {
   render.mouse = mouse;
 
   World.add(world, [
-    FAKE_PERSON
+    FAKE_PERSON,
+    GROUND,
   ]);
-
-  Render.lookAt(render, {
-    min: {x: 0, y: 0},
-    max: {x: 800, y: 600}
-  });
-
 
 });
