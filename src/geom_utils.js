@@ -2,7 +2,7 @@ const DEG_TO_RAD = Math.PI / 180.0;
 
 function linePointsToRadians(line_pt1, line_pt2) {
   const denom = line_pt1[0] - line_pt2[0];
-  if (denom == 0) {
+  if (denom === 0) {
     return Math.PI / 2.0;
   }
 

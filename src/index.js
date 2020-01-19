@@ -132,27 +132,6 @@ function removeOutOfBoundsBodies(bodies) {
   console.log(`Removed ${count} out of bound entities`);
 }
 
-/*
-
-def spawnTilesAroundPolygon(polygon):
-    center = get_center_of_rect(polygon)
-
-    perp_point_lines = pointsPerpendicularToAndOutsideOfPolygon(polygon, 20, 30)
-    result = []
-    for perp_points in perp_point_lines:
-        print("perp_points", perp_points)
-        if distanceBetweenPoints(perp_points[0], center) > distanceBetweenPoints(perp_points[1], center):
-            angle_r = linePointsToRadians(perp_points[0], perp_points[1])
-            spawn_pt = pointAngleRadsAndDistanceFromPoint(perp_points[0], angle_r, 1)
-            result.append([perp_points[0], perp_points[1]])
-        else:
-            angle_r = linePointsToRadians(perp_points[1], perp_points[0])
-            spawn_pt = pointAngleRadsAndDistanceFromPoint(perp_points[1], angle_r, 1)
-            result.append([perp_points[1], perp_points[0]])
-
-    return result
-
- */
 
 function spawnTilesAroundPolygon(polygon, distance, max_segment_length) {
   const center = GeomUtils.center_of_rect(polygon);
@@ -166,12 +145,10 @@ function spawnTilesAroundPolygon(polygon, distance, max_segment_length) {
 
     if (GeomUtils.distanceBetweenPoints(perp_points[0], center) > GeomUtils.distanceBetweenPoints(perp_points[1], center)) {
       angle_r = GeomUtils.linePointsToRadians(perp_points[0], perp_points[1]);
-      spawn_pt = GeomUtils.pointAngleRadsAndDistanceFromPoint(perp_points[0], angle_r, 1);
       spawn_pt = perp_points[0];
 
     } else {
       angle_r = GeomUtils.linePointsToRadians(perp_points[1], perp_points[0]);
-      spawn_pt = GeomUtils.pointAngleRadsAndDistanceFromPoint(perp_points[1], angle_r, 1);
       spawn_pt = perp_points[1];
     }
 
