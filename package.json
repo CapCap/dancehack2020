@@ -1,0 +1,14 @@
+{
+  "name": "dancehack_rectangle_physics",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "matter-js": "^0.14.2",
+    "webpack": "^4.41.5",
+    "webpack-dev-server": "^3.10.1"
+  },
+  "devDependencies": {
+    "webpack-cli": "^3.3.10"
+  }
+}
