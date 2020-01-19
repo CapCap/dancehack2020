@@ -34,7 +34,8 @@ let CENTER_Y = CANVAS_HEIGHT / 2.0;
 
 const SPAWN_POINT_OFFSET = 20;
 const SPAWN_MAX_DISTANCE = 75;
-const SPAWN_INTERVAL = 300;
+const SPAWN_INTERVAL = 500;
+const SPAWN_HEIGHT_CUTOFF = CANVAS_HEIGHT - 50;
 
 // Should the tiles collide with one another
 const TILES_COLLIDE = true;
@@ -88,9 +89,9 @@ GROUND.collisionFilter.category = 0b0100;
 GROUND.collisionFilter.mask = 0b0101;
 Matter.Body.setStatic(GROUND, true);
 
-function addTile(x_spawn, y_spawn, angle_r) {
+function addTile(x_spawn, y_spawn, angle_r, force_vector) {
   // Don't spawn too close to the ground?
-  if (y_spawn > CANVAS_HEIGHT - 30) {
+  if (y_spawn > SPAWN_HEIGHT_CUTOFF) {
     return;
   }
 
@@ -104,8 +105,8 @@ function addTile(x_spawn, y_spawn, angle_r) {
 
   // body.render.fillStyle = "#" + Math.floor((Math.random() * 16777215) + 1000).toString(16);
 
-  body.force.x += (x_spawn - CENTER_X) / 1000000.0;
-  body.force.y += (y_spawn - CENTER_Y) / 1000000.0;
+  body.force.x += force_vector[0] / 10000.0;
+  body.force.y += force_vector[1] / 10000.0;
 
   body.friction = 0;
   body.frictionAir = 0;
@@ -137,31 +138,27 @@ function spawnTilesAroundPolygon(polygon, distance, max_segment_length) {
   const center = GeomUtils.center_of_rect(polygon);
 
   const perp_point_lines = GeomUtils.pointsPerpendicularToAndOutsideOfPolygon(polygon, distance, max_segment_length);
-  console.log("perp_point_lines", perp_point_lines);
   let angle_r;
-  let spawn_pt;
+  let p1;
+  let p2;
+
   for (let perp_points of perp_point_lines) {
-    console.log("perp_points", perp_points);
-
     if (GeomUtils.distanceBetweenPoints(perp_points[0], center) > GeomUtils.distanceBetweenPoints(perp_points[1], center)) {
-      angle_r = GeomUtils.linePointsToRadians(perp_points[0], perp_points[1]);
-      spawn_pt = perp_points[0];
-
+      p1 = perp_points[0];
+      p2 = perp_points[1];
     } else {
-      angle_r = GeomUtils.linePointsToRadians(perp_points[1], perp_points[0]);
-      spawn_pt = perp_points[1];
+      p1 = perp_points[1];
+      p2 = perp_points[0];
     }
 
-    /*if (GeomUtils.distanceBetweenPoints(perp_points[0], center) > GeomUtils.distanceBetweenPoints(perp_points[1], center)) {
-      angle_r = GeomUtils.linePointsToRadians(perp_points[0], perp_points[1]);
-      spawn_pt = perp_points[0];
-    } else {
-      angle_r = GeomUtils.linePointsToRadians(perp_points[1], perp_points[0]);
-      spawn_pt = perp_points[1];
-    }*/
+    // TODO: When in a rect, for some reason the top force_vector direction is wrong.
+    angle_r = GeomUtils.linePointsToRadians(p1, p2);
+    const v = [p1[0] - p2[0], p1[1] - p2[1]];
+    const m = GeomUtils.distanceBetweenPoints([0, 0], v);
+    const force_vector = [v[0] / m, v[1] / m];
+    // console.log("force_vector", v, m, force_vector);
 
-    addTile(spawn_pt[0], spawn_pt[1], angle_r + Math.PI / 2);
-
+    addTile(p1[0], p1[1], angle_r + Math.PI / 2, force_vector);
   }
 }
 
@@ -222,7 +219,6 @@ function start() {
 
   setInterval(() => spawnTiles(), SPAWN_INTERVAL);
 
-  spawnTiles()
 
   // Remove out of bound elements every 1s
   setInterval(() => removeOutOfBoundsBodies(Matter.Composite.allBodies(world)), 1000);
